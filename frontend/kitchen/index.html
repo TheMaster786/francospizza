@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Franco's Kitchen Display</title>
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #1a1a1a;
+            color: white;
+        }
+
+        .header {
+            background: #c41e1e;
+            padding: 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .logo-img {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+        }
+
+        .kds-title {
+            font-size: 2rem;
+            font-weight: bold;
+        }
+
+        .stats {
+            display: flex;
+            gap: 2rem;
+        }
+
+        .stat-item {
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 2rem;
+            font-weight: bold;
+        }
+
+        .stat-label {
+            font-size: 0.9rem;
+            opacity: 0.8;
+        }
+
+        .orders-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 1rem;
+            padding: 1rem;
+        }
+
+        .order-card {
+            background: #2d2d2d;
+            border-radius: 8px;
+            padding: 1rem;
+            border-left: 5px solid;
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .order-card.pending {
+            border-left-color: #ffc107;
+        }
+
+        .order-card.cooking {
+            border-left-color: #17a2b8;
+        }
+
+        .order-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid #444;
+        }
+
+        .order-number {
+            font-size: 1.3rem;
+            font-weight: bold;
+            color: #c41e1e;
+        }
+
+        .order-time {
+            font-family: monospace;
+            font-size: 1.1rem;
+        }
+
+        .order-items {
+            margin-bottom: 1rem;
+        }
+
+        .order-item {
+            padding: 0.3rem 0;
+            border-bottom: 1px solid #3d3d3d;
+        }
+
+        .item-name {
+            font-weight: bold;
+        }
+
+        .item-details {
+            font-size: 0.9rem;
+            color: #aaa;
+            margin-left: 1rem;
+        }
+
+        .order-footer {
+            display: flex;
+            gap: 0.5rem;
+            margin-top: 1rem;
+        }
+
+        .status-btn {
+            flex: 1;
+            padding: 0.8rem;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: opacity 0.2s;
+        }
+
+        .status-btn:hover {
+            opacity: 0.9;
+        }
+
+        .btn-cooking {
+            background: #17a2b8;
+            color: white;
+        }
+
+        .btn-ready {
+            background: #28a745;
+            color: white;
+        }
+
+        .no-orders {
+            grid-column: 1 / -1;
+            text-align: center;
+            padding: 3rem;
+            font-size: 1.5rem;
+            color: #666;
+        }
+
+        .timer-critical {
+            color: #dc3545;
+            font-weight: bold;
+        }
+
+        .timer-warning {
+            color: #ffc107;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="logo">
+            <img src="http://localhost:3000/logo/francos-logo.jpeg" alt="Franco's" class="logo-img" id="kitchenLogo">
+            <div class="kds-title">Kitchen Display System</div>
+        </div>
+        <div class="stats">
+            <div class="stat-item">
+                <div class="stat-value" id="pendingCount">0</div>
+                <div class="stat-label">Pending</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value" id="cookingCount">0</div>
+                <div class="stat-label">Cooking</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="orders-grid" id="ordersGrid">
+        <div class="no-orders">Waiting for orders...</div>
+    </div>
+
+    <script>
+        const socket = io('http://localhost:3000');
+        let orders = [];
+        let timers = {};
+
+        // Handle logo error
+        document.getElementById('kitchenLogo').onerror = function() {
+            this.src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="50" height="50" viewBox="0 0 50 50"><circle cx="25" cy="25" r="25" fill="%23c41e1e"/><text x="25" y="33" font-size="14" text-anchor="middle" fill="white">🍕</text></svg>';
+        };
+
+        // Load existing orders
+        async function loadOrders() {
+            try {
+                const response = await fetch('http://localhost:3000/api/orders');
+                orders = await response.json();
+                displayOrders();
+            } catch (error) {
+                console.error('Error loading orders:', error);
+            }
+        }
+
+        // Listen for new orders
+        socket.on('new-order', (order) => {
+            loadOrders(); // Reload all orders to get full details
+            playNotification();
+        });
+
+        socket.on('order-updated', (data) => {
+            loadOrders();
+        });
+
+        function playNotification() {
+            const audio = new Audio('data:audio/wav;base64,//uQRAAAAWMSLwUIYAAsYkXgoQwAEaYLWfkWgAI0wWs/ItAAAGDgYtAgAyN+QWaAAihwMWm4G8QQRDiMcCB//XfQAAAAAAAAAAAAAAAAAAAAA=');
+            audio.play().catch(e => console.log('Audio play failed:', e));
+        }
+
+        function displayOrders() {
+            const grid = document.getElementById('ordersGrid');
+            
+            if (orders.length === 0) {
+                grid.innerHTML = '<div class="no-orders">Waiting for orders...</div>';
+                return;
+            }
+
+            // Start timers for new orders
+            orders.forEach(order => {
+                if (!timers[order.id] && order.status !== 'done') {
+                    startTimer(order.id, order.created_at);
+                }
+            });
+
+            const pendingOrders = orders.filter(o => o.status === 'pending');
+            const cookingOrders = orders.filter(o => o.status === 'cooking');
+            
+            document.getElementById('pendingCount').textContent = pendingOrders.length;
+            document.getElementById('cookingCount').textContent = cookingOrders.length;
+
+            const allOrdersHtml = [...pendingOrders, ...cookingOrders].map(order => {
+                const timeElapsed = getTimeElapsed(order.created_at);
+                const timeClass = getTimeClass(timeElapsed);
+                const items = order.items ? order.items.split(',').map(item => item.trim()) : [];
+
+                return `
+                    <div class="order-card ${order.status}" data-order-id="${order.id}">
+                        <div class="order-header">
+                            <span class="order-number">#${order.order_number}</span>
+                            <span class="order-time ${timeClass}" id="timer-${order.id}">${formatTime(timeElapsed)}</span>
+                        </div>
+                        <div class="order-items">
+                            ${items.map(item => `
+                                <div class="order-item">
+                                    <div class="item-name">${item}</div>
+                                </div>
+                            `).join('')}
+                        </div>
+                        <div class="order-footer">
+                            ${order.status === 'pending' ? 
+                                `<button class="status-btn btn-cooking" onclick="updateStatus(${order.id}, 'cooking')">Start Cooking</button>` : 
+                                `<button class="status-btn btn-ready" onclick="updateStatus(${order.id}, 'done')">Mark Ready</button>`
+                            }
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            grid.innerHTML = allOrdersHtml;
+        }
+
+        function startTimer(orderId, createdAt) {
+            timers[orderId] = setInterval(() => {
+                const timerElement = document.getElementById(`timer-${orderId}`);
+                if (timerElement) {
+                    const timeElapsed = getTimeElapsed(createdAt);
+                    timerElement.textContent = formatTime(timeElapsed);
+                    timerElement.className = `order-time ${getTimeClass(timeElapsed)}`;
+                }
+            }, 1000);
+        }
+
+        function getTimeElapsed(createdAt) {
+            const created = new Date(createdAt).getTime();
+            const now = new Date().getTime();
+            return Math.floor((now - created) / 1000); // seconds
+        }
+
+        function formatTime(seconds) {
+            const mins = Math.floor(seconds / 60);
+            const secs = seconds % 60;
+            return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+        }
+
+        function getTimeClass(seconds) {
+            if (seconds > 600) return 'timer-critical'; // > 10 minutes
+            if (seconds > 300) return 'timer-warning';  // > 5 minutes
+            return '';
+        }
+
+        async function updateStatus(orderId, status) {
+            try {
+                const response = await fetch(`http://localhost:3000/api/orders/${orderId}/status`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ status })
+                });
+                
+                if (response.ok) {
+                    if (status === 'done') {
+                        clearInterval(timers[orderId]);
+                        delete timers[orderId];
+                    }
+                    loadOrders();
+                }
+            } catch (error) {
+                console.error('Error updating status:', error);
+            }
+        }
+
+        // Initial load
+        loadOrders();
+
+        // Refresh orders every 30 seconds as backup
+        setInterval(loadOrders, 30000);
+    </script>
+</body>
+</html>
