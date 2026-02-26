@@ -1,0 +1,24 @@
+{
+  "name": "francospizza-pos",
+  "version": "1.0.0",
+  "description": "POS and Kitchen Display System for Franco's Pizza",
+  "main": "backend/server.js",
+  "scripts": {
+    "start": "node backend/server.js",
+    "dev": "nodemon backend/server.js",
+    "pos": "npx http-server frontend/pos -p 8080",
+    "kitchen": "npx http-server frontend/kitchen -p 8081",
+    "all": "concurrently \"npm run dev\" \"npm run pos\" \"npm run kitchen\""
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "socket.io": "^4.5.4",
+    "sqlite3": "^5.1.4",
+    "cors": "^2.8.5"
+  },
+  "devDependencies": {
+    "nodemon": "^2.0.20",
+    "concurrently": "^7.6.0",
+    "http-server": "^14.1.1"
+  }
+}
