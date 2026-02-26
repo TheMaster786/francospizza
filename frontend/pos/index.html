@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Franco's Pizza POS</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f0f0f0;
+        }
+
+        .header {
+            background: #c41e1e;
+            color: white;
+            padding: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .logo {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            object-fit: cover;
+        }
+
+        .store-info {
+            flex-grow: 1;
+        }
+
+        .store-name {
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+
+        .store-address {
+            font-size: 0.9rem;
+            opacity: 0.9;
+        }
+
+        .pos-container {
+            display: grid;
+            grid-template-columns: 1fr 400px;
+            gap: 1rem;
+            padding: 1rem;
+            height: calc(100vh - 100px);
+        }
+
+        .menu-section {
+            background: white;
+            border-radius: 8px;
+            padding: 1rem;
+            overflow-y: auto;
+        }
+
+        .categories {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .category-btn {
+            padding: 0.5rem 1rem;
+            border: none;
+            background: #f0f0f0;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 1rem;
+        }
+
+        .category-btn.active {
+            background: #c41e1e;
+            color: white;
+        }
+
+        .menu-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 1rem;
+        }
+
+        .menu-item {
+            background: #f9f9f9;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 1rem;
+            text-align: center;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .menu-item:hover {
+            transform: scale(1.02);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .item-name {
+            font-weight: bold;
+            margin-bottom: 0.5rem;
+        }
+
+        .item-price {
+            color: #c41e1e;
+            font-weight: bold;
+        }
+
+        .order-section {
+            background: white;
+            border-radius: 8px;
+            padding: 1rem;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .order-header {
+            font-size: 1.2rem;
+            font-weight: bold;
+            margin-bottom: 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 2px solid #c41e1e;
+        }
+
+        .order-items {
+            flex-grow: 1;
+            overflow-y: auto;
+            margin-bottom: 1rem;
+        }
+
+        .order-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.5rem;
+            border-bottom: 1px solid #eee;
+        }
+
+        .item-details {
+            flex-grow: 1;
+        }
+
+        .item-actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .item-actions button {
+            border: none;
+            background: none;
+            cursor: pointer;
+            color: #666;
+        }
+
+        .item-actions button:hover {
+            color: #c41e1e;
+        }
+
+        .order-total {
+            font-size: 1.3rem;
+            font-weight: bold;
+            margin: 1rem 0;
+            text-align: right;
+        }
+
+        .payment-buttons {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .payment-btn {
+            padding: 1rem;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        .payment-btn.cash {
+            background: #4CAF50;
+            color: white;
+        }
+
+        .payment-btn.card {
+            background: #2196F3;
+            color: white;
+        }
+
+        .send-order-btn {
+            padding: 1rem;
+            background: #c41e1e;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 1.2rem;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .send-order-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        .toppings-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 2rem;
+            border-radius: 8px;
+            max-width: 500px;
+            width: 90%;
+        }
+
+        .toppings-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 0.5rem;
+            margin: 1rem 0;
+        }
+
+        .topping-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <img src="http://localhost:3000/logo/francos-logo.jpeg" alt="Franco's Pizza" class="logo" id="storeLogo">
+        <div class="store-info">
+            <div class="store-name">Franco's Pizza & Pasta</div>
+            <div class="store-address">228 S Main St, Newtown, CT • 203-270-3548</div>
+        </div>
+        <div class="time" id="currentTime"></div>
+    </div>
+
+    <div class="pos-container">
+        <div class="menu-section">
+            <div class="categories" id="categories">
+                <button class="category-btn active" data-category="all">All</button>
+            </div>
+            <div class="menu-grid" id="menuGrid"></div>
+        </div>
+
+        <div class="order-section">
+            <div class="order-header">Current Order</div>
+            <div class="order-items" id="orderItems"></div>
+            <div class="order-total" id="orderTotal">Total: $0.00</div>
+            <div class="payment-buttons">
+                <button class="payment-btn cash" onclick="setPaymentMethod('cash')">Cash</button>
+                <button class="payment-btn card" onclick="setPaymentMethod('card')">Card</button>
+            </div>
+            <button class="send-order-btn" id="sendOrderBtn" onclick="sendOrder()" disabled>Send to Kitchen</button>
+        </div>
+    </div>
+
+    <!-- Toppings Modal -->
+    <div class="toppings-modal" id="toppingsModal">
+        <div class="modal-content">
+            <h3>Customize Your Pizza</h3>
+            <div class="toppings-grid" id="toppingsGrid">
+                <!-- Toppings will be loaded here -->
+            </div>
+            <div>
+                <label>Special Instructions:</label>
+                <textarea id="specialInstructions" style="width: 100%; margin: 1rem 0; padding: 0.5rem;"></textarea>
+            </div>
+            <button onclick="addToOrderWithToppings()" style="background: #c41e1e; color: white; border: none; padding: 0.5rem 1rem; border-radius: 4px; cursor: pointer;">Add to Order</button>
+            <button onclick="closeModal()" style="background: #ccc; border: none; padding: 0.5rem 1rem; border-radius: 4px; cursor: pointer; margin-left: 0.5rem;">Cancel</button>
+        </div>
+    </div>
+
+    <script>
+        let menu = [];
+        let currentOrder = [];
+        let selectedPaymentMethod = null;
+        let currentItem = null;
+        const toppings = ['Pepperoni', 'Mushrooms', 'Onions', 'Sausage', 'Bacon', 'Extra Cheese', 'Olives', 'Peppers', 'Pineapple', 'Anchovies'];
+
+        // Load logo with fallback
+        const logo = document.getElementById('storeLogo');
+        logo.onerror = function() {
+            this.src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="60" height="60" viewBox="0 0 60 60"><circle cx="30" cy="30" r="30" fill="%23c41e1e"/><text x="30" y="38" font-size="16" text-anchor="middle" fill="white">🍕</text></svg>';
+        };
+
+        // Update time
+        function updateTime() {
+            const now = new Date();
+            document.getElementById('currentTime').textContent = now.toLocaleTimeString();
+        }
+        setInterval(updateTime, 1000);
+        updateTime();
+
+        // Load menu from backend
+        async function loadMenu() {
+            try {
+                const response = await fetch('http://localhost:3000/api/menu');
+                menu = await response.json();
+                
+                // Get unique categories
+                const categories = ['all', ...new Set(menu.map(item => item.category))];
+                const categoriesHtml = categories.map(cat => 
+                    `<button class="category-btn ${cat === 'all' ? 'active' : ''}" data-category="${cat}" onclick="filterMenu('${cat}')">${cat}</button>`
+                ).join('');
+                document.getElementById('categories').innerHTML = categoriesHtml;
+                
+                displayMenu('all');
+            } catch (error) {
+                console.error('Error loading menu:', error);
+            }
+        }
+
+        function displayMenu(category) {
+            const filteredMenu = category === 'all' ? menu : menu.filter(item => item.category === category);
+            const menuHtml = filteredMenu.map(item => `
+                <div class="menu-item" onclick="selectItem(${JSON.stringify(item).replace(/"/g, '&quot;')})">
+                    <div class="item-name">${item.item_name}</div>
+                    <div class="item-price">$${item.price}</div>
+                </div>
+            `).join('');
+            document.getElementById('menuGrid').innerHTML = menuHtml;
+        }
+
+        function filterMenu(category) {
+            document.querySelectorAll('.category-btn').forEach(btn => {
+                btn.classList.remove('active');
+                if (btn.dataset.category === category) {
+                    btn.classList.add('active');
+                }
+            });
+            displayMenu(category);
+        }
+
+        function selectItem(item) {
+            if (item.category === 'Pizza') {
+                currentItem = item;
+                showToppingsModal();
+            } else {
+                addToOrder(item);
+            }
+        }
+
+        function showToppingsModal() {
+            const toppingsHtml = toppings.map(topping => `
+                <div class="topping-item">
+                    <input type="checkbox" id="topping-${topping}" value="${topping}">
+                    <label for="topping-${topping}">${topping}</label>
+                </div>
+            `).join('');
+            document.getElementById('toppingsGrid').innerHTML = toppingsHtml;
+            document.getElementById('toppingsModal').style.display = 'flex';
+        }
+
+        function closeModal() {
+            document.getElementById('toppingsModal').style.display = 'none';
+            currentItem = null;
+        }
+
+        function addToOrderWithToppings() {
+            const selectedToppings = [];
+            document.querySelectorAll('#toppingsGrid input:checked').forEach(cb => {
+                selectedToppings.push(cb.value);
+            });
+            
+            const instructions = document.getElementById('specialInstructions').value;
+            
+            addToOrder({
+                ...currentItem,
+                toppings: selectedToppings.join(', '),
+                instructions: instructions
+            });
+            
+            closeModal();
+        }
+
+        function addToOrder(item) {
+            const existingItem = currentOrder.find(i => 
+                i.id === item.id && 
+                i.toppings === item.toppings && 
+                i.instructions === item.instructions
+            );
+            
+            if (existingItem) {
+                existingItem.quantity++;
+            } else {
+                currentOrder.push({
+                    ...item,
+                    quantity: 1
+                });
+            }
+            
+            updateOrderDisplay();
+        }
+
+        function updateOrderDisplay() {
+            const orderHtml = currentOrder.map((item, index) => `
+                <div class="order-item">
+                    <div class="item-details">
+                        <div><strong>${item.quantity}x ${item.item_name}</strong></div>
+                        ${item.toppings ? `<div style="font-size: 0.9rem; color: #666;">Toppings: ${item.toppings}</div>` : ''}
+                        ${item.instructions ? `<div style="font-size: 0.9rem; color: #666;">Note: ${item.instructions}</div>` : ''}
+                        <div>$${(item.price * item.quantity).toFixed(2)}</div>
+                    </div>
+                    <div class="item-actions">
+                        <button onclick="removeItem(${index})">🗑️</button>
+                    </div>
+                </div>
+            `).join('');
+            
+            document.getElementById('orderItems').innerHTML = orderHtml || '<div style="text-align: center; color: #666;">No items in order</div>';
+            
+            const total = currentOrder.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+            document.getElementById('orderTotal').textContent = `Total: $${total.toFixed(2)}`;
+            
+            document.getElementById('sendOrderBtn').disabled = currentOrder.length === 0 || !selectedPaymentMethod;
+        }
+
+        function removeItem(index) {
+            currentOrder.splice(index, 1);
+            updateOrderDisplay();
+        }
+
+        function setPaymentMethod(method) {
+            selectedPaymentMethod = method;
+            document.querySelectorAll('.payment-btn').forEach(btn => {
+                btn.style.opacity = btn.classList.contains(method) ? '1' : '0.5';
+            });
+            updateOrderDisplay();
+        }
+
+        async function sendOrder() {
+            if (currentOrder.length === 0 || !selectedPaymentMethod) return;
+            
+            const orderData = {
+                items: currentOrder,
+                total: currentOrder.reduce((sum, item) => sum + (item.price * item.quantity), 0),
+                paymentMethod: selectedPaymentMethod
+            };
+            
+            try {
+                const response = await fetch('http://localhost:3000/api/orders', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(orderData)
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    alert(`✅ Order #${result.orderNumber} sent to kitchen!`);
+                    currentOrder = [];
+                    selectedPaymentMethod = null;
+                    updateOrderDisplay();
+                    
+                    // Reset payment buttons
+                    document.querySelectorAll('.payment-btn').forEach(btn => {
+                        btn.style.opacity = '1';
+                    });
+                }
+            } catch (error) {
+                console.error('Error sending order:', error);
+                alert('❌ Error sending order. Please try again.');
+            }
+        }
+
+        // Initialize
+        loadMenu();
+    </script>
+</body>
+</html>
